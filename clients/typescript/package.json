@@ -1,0 +1,39 @@
+{
+  "name": "@flexbit/sdk",
+  "version": "1.0.1",
+  "description": "FlexBIT SDK client for TypeScript/JavaScript",
+  "keywords": [
+    "api",
+    "client",
+    "energy",
+    "flexbit",
+    "rec"
+  ],
+  "license": "AGPL-3.0",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "sample:device": "cd sample && node --env-file=.env device-demo.ts",
+    "sample:module": "cd sample && node --env-file=.env control-demo.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@platformatic/kafka": "^2.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2"
+  }
+}
