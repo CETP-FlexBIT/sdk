@@ -1,6 +1,6 @@
 # Global module API
 
-The TypeScript and Python module SDKs can query the platform and send control feedback over HTTP. They use a global API key created in the platform's `/admin` view. This key works from inside Kubernetes and from external clients. It grants access to the module data/control API across every organization. User and organization administration still require an authenticated admin session.
+The TypeScript and Python module SDKs can query the platform and send control feedback over HTTP. They use a global API key created in the platform's `/admin/api-keys` page. This key works from inside Kubernetes and from external clients. It grants access to the module data/control API across every organization. User and organization administration still require an authenticated admin session.
 
 Configure the client through environment variables:
 
