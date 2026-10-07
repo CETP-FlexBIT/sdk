@@ -164,3 +164,7 @@ Each sample requires `FLEXBIT_HOST`, `FLEXBIT_API_ID`, and `FLEXBIT_API_SECRET`.
 ## License
 
 This repository and its packages are licensed under the GNU Affero General Public License v3.0. See [LICENSE](./LICENSE).
+
+## Global module API
+
+TypeScript and Python modules can query sites, assets, current metrics, and history, then send control feedback through the platform HTTP API. Use a revocable global key created in the platform admin view. See [the module API guide](MODULE_API.md).

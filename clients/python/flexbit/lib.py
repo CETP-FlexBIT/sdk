@@ -247,6 +247,8 @@ class ModuleConnector:
     def __init__(self, connector: Connector) -> None:
         self._connector = connector
         self.control = connector.control
+        from .module_api import create_module_api
+        self.platform = create_module_api()
         self.subscribe = connector.subscribe_ingestion
         self.close = connector.close
 

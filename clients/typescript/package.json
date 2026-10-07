@@ -21,16 +21,22 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./module": {
+      "types": "./dist/module-api.d.ts",
+      "import": "./dist/module-api.js"
     }
   },
   "scripts": {
     "build": "tsc",
     "sample:device": "cd sample && node --env-file=.env device-demo.ts",
     "sample:module": "cd sample && node --env-file=.env control-demo.ts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "npm run build && node --test test/*.test.js"
   },
   "dependencies": {
-    "@platformatic/kafka": "^2.4.0"
+    "@platformatic/kafka": "^2.4.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

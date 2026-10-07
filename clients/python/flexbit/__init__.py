@@ -1,3 +1,4 @@
+from .module_api import ModuleApi, ModuleApiError, MetricSample, create_module_api
 from .lib import (
     ApiCredentials,
     Connector,
@@ -10,6 +11,7 @@ from .lib import (
 )
 
 __all__ = [
+    "ModuleApi", "ModuleApiError", "MetricSample", "create_module_api",
     "ApiCredentials",
     "Connector",
     "CreateConnectorOptions",
