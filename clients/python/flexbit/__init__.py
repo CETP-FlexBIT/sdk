@@ -1,4 +1,12 @@
-from .module_api import ModuleApi, ModuleApiError, MetricSample, create_module_api
+from .module_lifecycle import RegisteredModule
+from .module_api import (
+    ModuleApi,
+    ModuleApiError,
+    ModuleOrganization,
+    ModuleSite,
+    MetricSample,
+    create_module_api,
+)
 from .lib import (
     ApiCredentials,
     Connector,
@@ -11,7 +19,10 @@ from .lib import (
 )
 
 __all__ = [
+    "RegisteredModule",
     "ModuleApi", "ModuleApiError", "MetricSample", "create_module_api",
+    "ModuleOrganization",
+    "ModuleSite",
     "ApiCredentials",
     "Connector",
     "CreateConnectorOptions",

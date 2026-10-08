@@ -1,4 +1,13 @@
 import { z } from "zod";
+import { watchModule, type ModuleRegistration, type RegisteredModule } from "./module-lifecycle.js";
+export type { ModuleRegistration, RegisteredModule } from "./module-lifecycle.js";
+
+const moduleIdSchema = z
+  .string()
+  .min(1)
+  .max(100)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+const moduleStatusSchema = z.object({ id: moduleIdSchema, enabled: z.boolean() });
 
 const metadata = z.record(z.string(), z.unknown()).nullable();
 const siteSchema = z.object({
@@ -49,6 +58,8 @@ export class ModuleApiError extends Error {
 
 /** Uses the same global admin key inside Kubernetes and in external clients. */
 export function createModuleApi() {
+  let registration: RegisteredModule | undefined;
+  let registering = false;
   async function request<T>(path: string, input: unknown, schema: z.ZodType<T>): Promise<T> {
     const url = process.env.FLEXBIT_PLATFORM_URL;
     const key = process.env.FLEXBIT_API_KEY;
@@ -65,6 +76,31 @@ export function createModuleApi() {
     return schema.parse(body);
   }
   return {
+    async registerModule(options: ModuleRegistration): Promise<RegisteredModule> {
+      if (registration || registering)
+        throw new Error("This API client already registered a module");
+      const input = z
+        .object({
+          id: moduleIdSchema,
+          name: z.string().trim().min(1).max(255).optional(),
+          description: z.string().max(2000).optional(),
+          version: z.string().max(100).optional(),
+        })
+        .parse(options);
+      registering = true;
+      try {
+        const status = await request("register", input, moduleStatusSchema);
+        if (status.id !== input.id) throw new Error("Module registration returned a different ID");
+        registration = await watchModule(options, status.enabled, async () => {
+          const status = await request("heartbeat", { id: input.id }, moduleStatusSchema);
+          if (status.id !== input.id) throw new Error("Module heartbeat returned a different ID");
+          return status.enabled;
+        });
+        return registration;
+      } finally {
+        registering = false;
+      }
+    },
     sites: { list: (page: Page = {}) => request("sites/list", page, z.array(siteSchema)) },
     assets: {
       list: (input: Page & { siteId?: string } = {}) =>
@@ -78,8 +114,11 @@ export function createModuleApi() {
       history: (input: MetricHistoryInput) =>
         request("metrics/history", input, z.array(sampleSchema)),
     },
-    control: (assetId: string, values: Record<string, unknown>) =>
-      request("control", { assetId, values }, z.object({ success: z.literal(true) })),
+    control: (assetId: string, values: Record<string, unknown>) => {
+      if (registration && !registration.enabled)
+        return Promise.reject(new Error("Module is disabled or its status cannot be confirmed"));
+      return request("control", { assetId, values }, z.object({ success: z.literal(true) }));
+    },
   };
 }
 export type ModuleApi = ReturnType<typeof createModuleApi>;

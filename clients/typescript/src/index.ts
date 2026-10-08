@@ -2,6 +2,8 @@ import { createModuleApi } from "./module-api.js";
 export { createModuleApi, ModuleApiError } from "./module-api.js";
 export type {
   ModuleApi,
+  ModuleRegistration,
+  RegisteredModule,
   ModuleSite,
   ModuleAsset,
   MetricSample,

@@ -179,3 +179,11 @@ npm run sample:module
 ## License
 
 GNU Affero General Public License v3.0.
+
+## Module registration
+
+Register a module such as `forecasting-module` with a dedicated global platform
+API key. Admins can enable or disable it at `/admin/modules`. The SDK checks status
+every 30 seconds and invokes start/stop callbacks when it changes. Modules start
+disabled and pause when a status check fails. See the [module API guide](../../MODULE_API.md#registering-and-enabling-a-module)
+for lifecycle examples, cancellation, and shutdown requirements.

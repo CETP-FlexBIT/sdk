@@ -86,3 +86,185 @@ test("sends control feedback through the same API", async () => {
     success: true,
   });
 });
+
+const flush = async () => {
+  for (let i = 0; i < 12; i++) await Promise.resolve();
+};
+test("registers metadata, polls every 30s, and reacts only to changes", async (t) => {
+  configure();
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  let enabled = false;
+  const events = [];
+  let signal;
+  const transport = mock.method(globalThis, "fetch", async (url, options) => {
+    const body = JSON.parse(options.body);
+    if (url.pathname.endsWith("/register")) {
+      assert.deepEqual(body, { id: "forecasting-module", name: "Forecasting" });
+    } else {
+      assert.equal(url.pathname, "/api/v1/module/heartbeat");
+      assert.deepEqual(body, { id: "forecasting-module" });
+    }
+    return Response.json({ id: body.id, enabled });
+  });
+  const api = createModuleApi();
+  const module = await api.registerModule({
+    id: "forecasting-module",
+    name: "Forecasting",
+    onEnable: (context) => {
+      signal = context.signal;
+      events.push("start");
+    },
+    onDisable: () => {
+      assert.equal(signal.aborted, true);
+      events.push("stop");
+    },
+  });
+  try {
+    assert.equal(module.enabled, false);
+    await assert.rejects(api.control(assetId, {}), /disabled/);
+    assert.equal(transport.mock.callCount(), 1);
+    enabled = true;
+    t.mock.timers.tick(29_999);
+    await flush();
+    assert.deepEqual(events, []);
+    t.mock.timers.tick(1);
+    await flush();
+    assert.deepEqual(events, ["start"]);
+    assert.equal(module.enabled, true);
+    t.mock.timers.tick(30_000);
+    await flush();
+    assert.deepEqual(events, ["start"]);
+    enabled = false;
+    t.mock.timers.tick(30_000);
+    await flush();
+    assert.deepEqual(events, ["start", "stop"]);
+    enabled = true;
+    t.mock.timers.tick(30_000);
+    await flush();
+    assert.deepEqual(events, ["start", "stop", "start"]);
+    await assert.rejects(
+      api.registerModule({ id: "other", onEnable() {}, onDisable() {} }),
+      /already/,
+    );
+  } finally {
+    await module.close();
+  }
+  assert.deepEqual(events, ["start", "stop", "start", "stop"]);
+  await module.close();
+  const count = transport.mock.callCount();
+  t.mock.timers.tick(90_000);
+  await flush();
+  assert.equal(transport.mock.callCount(), count);
+});
+
+test("pauses on heartbeat errors and resumes after confirmation", async (t) => {
+  configure();
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  let broken = false;
+  const events = [];
+  mock.method(globalThis, "fetch", async () =>
+    broken
+      ? new Response("Unauthorized", { status: 401 })
+      : Response.json({ id: "forecasting-module", enabled: true }),
+  );
+  const api = createModuleApi();
+  const module = await api.registerModule({
+    id: "forecasting-module",
+    onEnable: () => {
+      events.push("start");
+    },
+    onDisable: () => {
+      events.push("stop");
+    },
+    onError: (error) => {
+      events.push(error.status);
+    },
+  });
+  try {
+    broken = true;
+    t.mock.timers.tick(30_000);
+    await flush();
+    assert.equal(module.enabled, false);
+    assert.deepEqual(events, ["start", "stop", 401]);
+    await assert.rejects(api.control(assetId, {}), /disabled/);
+    broken = false;
+    t.mock.timers.tick(30_000);
+    await flush();
+    assert.equal(module.enabled, true);
+    assert.deepEqual(events, ["start", "stop", 401, "start"]);
+  } finally {
+    await module.close();
+  }
+});
+
+test("does not overlap checks and closing cancels in-flight enablement", async (t) => {
+  configure();
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  let complete;
+  let starts = 0;
+  const transport = mock.method(globalThis, "fetch", async (url) => {
+    if (url.pathname.endsWith("/register"))
+      return Response.json({ id: "forecasting-module", enabled: false });
+    return new Promise((resolve) => {
+      complete = resolve;
+    });
+  });
+  const module = await createModuleApi().registerModule({
+    id: "forecasting-module",
+    onEnable: () => {
+      starts++;
+    },
+    onDisable() {},
+  });
+  t.mock.timers.tick(30_000);
+  await flush();
+  t.mock.timers.tick(60_000);
+  await flush();
+  assert.equal(transport.mock.callCount(), 2);
+  const closing = module.close();
+  complete(Response.json({ id: "forecasting-module", enabled: true }));
+  await closing;
+  assert.equal(starts, 0);
+});
+
+test("retries failed cleanup before resuming and reports callback errors", async (t) => {
+  configure();
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  let remoteEnabled = true;
+  let cleanupFails = true;
+  const events = [];
+  mock.method(globalThis, "fetch", async () =>
+    Response.json({ id: "forecasting-module", enabled: remoteEnabled }),
+  );
+  const module = await createModuleApi().registerModule({
+    id: "forecasting-module",
+    onEnable: () => {
+      events.push("start");
+    },
+    onDisable: () => {
+      events.push("stop");
+      if (cleanupFails) throw new Error("cleanup");
+    },
+    onError: () => {
+      events.push("error");
+    },
+  });
+  try {
+    remoteEnabled = false;
+    t.mock.timers.tick(30_000);
+    await flush();
+    assert.equal(module.enabled, false);
+    remoteEnabled = true;
+    t.mock.timers.tick(30_000);
+    await flush();
+    assert.equal(events.filter((e) => e === "start").length, 1);
+    cleanupFails = false;
+    t.mock.timers.tick(30_000);
+    await flush();
+    assert.equal(module.enabled, true);
+    assert.equal(events.filter((e) => e === "start").length, 2);
+  } finally {
+    cleanupFails = false;
+    await module.close();
+  }
+});

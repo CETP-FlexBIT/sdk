@@ -192,13 +192,16 @@ class Connector:
     def _subscribe(self, type: ConnectorType, callback: MessageCallback) -> None:
         consumer_id = f"flexbit-sdk:{self.client_id}:consumer"
         self._consumer = _kafka_consumer_class()(
-            f"{type}.{self.site_id}",
             group_id=consumer_id,
             enable_auto_commit=True,
             session_timeout_ms=10000,
             heartbeat_interval_ms=500,
             **self._kafka_config(consumer_id),
         )
+        if type == "ingestion":
+            self._consumer.subscribe(pattern=r"^ingestion\..*$")
+        else:
+            self._consumer.subscribe(topics=[f"{type}.{self.site_id}"])
         for message in self._consumer:
             _run_callback(callback, _parse_message_value(message.value))
 

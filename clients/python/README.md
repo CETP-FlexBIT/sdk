@@ -107,7 +107,7 @@ device.ingest(
 
 ## Module Connector
 
-Use a module connector from a platform-side module. It subscribes to telemetry for the configured site and sends control commands back to assets at that site.
+Use a module connector from a platform-side module. It subscribes to telemetry from all `ingestion.*` topics and sends control commands to assets at the configured site.
 
 ```python
 import os
@@ -130,6 +130,8 @@ module = create_module_connector(
 
 
 def handle_telemetry(telemetry: dict) -> None:
+    if telemetry.get("meta_site_id") != site_id:
+        return
     if telemetry.get("type") != "bess" or "bess_storage_soc" not in telemetry:
         return
 
@@ -147,6 +149,21 @@ def handle_telemetry(telemetry: dict) -> None:
 
 module.subscribe(handle_telemetry)
 ```
+
+### Site information
+
+Set `FLEXBIT_PLATFORM_URL` and `FLEXBIT_API_KEY` to use the module's HTTP API.
+The API key is a global module key created in the platform admin page.
+
+```python
+site = module.platform.get_site(site_id)
+organization = site["organization"]  # id, name, slug; None if unavailable
+country = site["country"]  # organization's country code, e.g. "IT", or None
+```
+
+For telemetry from another site, pass the message's `meta_site_id` to `get_site`.
+The result also includes the site's name, type, description, and metadata.
+An unknown site raises `ModuleApiError` with status 404.
 
 ## API
 
@@ -167,10 +184,12 @@ create_module_connector(options)
 Returns:
 
 - `control(type, asset_id, content, meta=None)` - publish control commands to `control.{siteId}`.
-- `subscribe(callback)` - consume telemetry messages from `ingestion.{siteId}`.
+- `subscribe(callback)` - consume telemetry messages from all `ingestion.*` topics. Use `meta_site_id` in each message to identify its site.
 - `close()` - close any open Kafka producer or consumer.
 
 The lower-level `create_connector(options)` helper returns a `Connector` with `ingest`, `control`, `subscribe_ingestion`, `subscribe_control`, and `close`.
+
+`subscribe_ingestion(callback)` also consumes all `ingestion.*` topics.
 
 The SDK injects `type`, `meta_site_id`, `meta_asset_id`, and `meta_timestamp` into every produced message. `meta_timestamp` defaults to the current UTC time when not provided.
 
@@ -218,3 +237,12 @@ The sample files currently import from `src`, while the package exported by this
 ## License
 
 GNU Affero General Public License v3.0.
+
+
+## Module registration
+
+Register a module such as `forecasting-module` with a dedicated global platform
+API key. Admins can enable or disable it at `/admin/modules`. The SDK checks status
+every 30 seconds and invokes start/stop callbacks when it changes. Modules start
+disabled and pause when a status check fails. See the [module API guide](../../MODULE_API.md#registering-and-enabling-a-module)
+for lifecycle examples, cancellation, and shutdown requirements.

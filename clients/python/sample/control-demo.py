@@ -2,7 +2,7 @@
 FlexBIT SDK - Python module sample
 
 Reactive control loop:
-  - Consumes ingestion messages for the configured site
+  - Consumes ingestion messages from all sites
   - When BESS State of Charge crosses a threshold, sends a stop command
     back to the originating asset
 
@@ -48,6 +48,8 @@ def main() -> None:
     already_stopped: set[str] = set()
 
     def handle_telemetry(telemetry: dict) -> None:
+        if telemetry.get("meta_site_id") != SITE_ID:
+            return
         if telemetry.get("type") != "bess":
             return
 
