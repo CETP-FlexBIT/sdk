@@ -1,6 +1,6 @@
 [project]
 name = "flexbit-sdk"
-version = "1.0.3"
+version = "1.0.4"
 description = "FlexBIT SDK client for Python"
 readme = "README.md"
 requires-python = ">=3.10"

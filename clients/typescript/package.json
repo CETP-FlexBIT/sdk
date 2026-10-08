@@ -1,6 +1,6 @@
 {
   "name": "@flexbit/sdk",
-  "version": "1.0.1",
+  "version": "1.0.4",
   "description": "FlexBIT SDK client for TypeScript/JavaScript",
   "keywords": [
     "api",
@@ -35,11 +35,11 @@
     "test": "npm run build && node --test test/*.test.js"
   },
   "dependencies": {
-    "@platformatic/kafka": "^2.4.0",
+    "@platformatic/kafka": "^2.13.0",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.6.4",
     "typescript": "^7.0.2"
   }
 }
